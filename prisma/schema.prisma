@@ -1,0 +1,95 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("TURSO_DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String?   @map("password_hash")
+  status       String    @default("active")
+  role         String    @default("STUDENT") // <- علامت سوال حذف شد و مقدار پیش‌فرض اضافه شد
+  createdAt    DateTime  @default(now()) @map("created_at")
+  
+  recordings   Recording[]
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+model Recording {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  title           String
+  language        String?
+  durationSeconds Int?     @map("duration_seconds")
+  storageKey      String   @map("storage_key")
+  status          String   @default("uploaded")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user            User                @relation(fields: [userId], references: [id])
+  jobs            ProcessingJob[]
+  segments        TranscriptSegment[]
+  notes           Note[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("recordings")
+}
+
+model ProcessingJob {
+  id          String   @id @default(uuid())
+  recordingId String   @map("recording_id")
+  jobType     String   @map("job_type")
+  status      String   @default("queued")
+  priority    Int      @default(5)
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  recording   Recording @relation(fields: [recordingId], references: [id])
+
+  @@index([status, priority])
+  @@map("processing_jobs")
+}
+
+model TranscriptSegment {
+  id          String   @id @default(uuid())
+  recordingId String   @map("recording_id")
+  speakerId   String?  @map("speaker_id")
+  startTime   Float    @map("start_time")
+  endTime     Float    @map("end_time")
+  text        String
+
+  recording   Recording @relation(fields: [recordingId], references: [id])
+
+  @@map("transcript_segments")
+}
+
+model Note {
+  id          String   @id @default(uuid())
+  recordingId String   @map("recording_id")
+  title       String?
+  content     String   // JSON در SQLite به صورت String ذخیره می‌شود
+  version     Int      @default(1)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  recording   Recording @relation(fields: [recordingId], references: [id])
+
+  @@map("notes")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  action    String
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}

@@ -1,0 +1,28 @@
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../generated/prisma"
+  previewFeatures = ["driverAdapters"]
+}
+
+// ... مدل‌های شما (User, Session, Note و ...) ...
+model Session {
+  id        String   @id @default(cuid())
+  title     String   @default("جلسه جدید")
+  duration  Int // مدت زمان ضبط به ثانیه
+  createdAt DateTime @default(now())
+  status    String   @default("PROCESSING") // PROCESSING, READY, FAILED
+
+  note Note?
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  sessionId String   @unique
+  session   Session  @relation(fields: [sessionId], references: [id])
+  content   String // محتوای جزوه (HTML یا JSON)
+  createdAt DateTime @default(now())
+}
