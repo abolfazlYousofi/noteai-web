@@ -54,7 +54,7 @@ export default function HomePage() {
   const toggleTheme = () => setTheme((current) => current === 'light' ? 'dark' : 'light');
 
   return (
-    <div className="site-shell" data-theme={theme}>
+    <div className="site-shell " data-theme={theme}>
       <a href="#main" className="skip-link">رفتن به محتوای اصلی</a>
       
       <header className="topbar">

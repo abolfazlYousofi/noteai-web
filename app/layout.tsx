@@ -1,5 +1,14 @@
 import type { Metadata, Viewport } from 'next';
+import { Vazirmatn } from 'next/font/google';
 import './globals.css';
+import { Providers } from './providers'; // ایمپورت پرووایدر NextAuth
+
+// ۱. تنظیم فونت فارسی وزیرمتن
+const vazirmatn = Vazirmatn({
+  subsets: ['arabic', 'latin'],
+  variable: '--font-vazirmatn',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://noteai.example'),
@@ -51,14 +60,23 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   };
 
   return (
-    <html lang="fa" dir="rtl" suppressHydrationWarning>
-      <body>
-        {/* تزریق داده‌های ساختاریافته برای گوگل */}
+    <html lang="fa" dir="rtl" suppressHydrationWarning className={vazirmatn.variable}>
+            <body style={{ fontFamily: 'var(--font-vazirmatn), sans-serif' }}>
+        
+        {/* پس‌زمینه پریمیوم و متحرک */}
+        <div className="premium-bg">
+          <div className="orb orb-green"></div>
+          <div className="orb orb-blue"></div>
+          <div className="orb orb-mint"></div>
+        </div>
+
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

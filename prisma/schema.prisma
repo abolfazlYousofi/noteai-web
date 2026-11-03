@@ -13,11 +13,13 @@ model User {
   email        String    @unique
   passwordHash String?   @map("password_hash")
   status       String    @default("active")
-  role         String    @default("STUDENT") // <- علامت سوال حذف شد و مقدار پیش‌فرض اضافه شد
+  role         String    @default("STUDENT")
   createdAt    DateTime  @default(now()) @map("created_at")
   
   recordings   Recording[]
   auditLogs    AuditLog[]
+  subscription Subscription? 
+  transactions Transaction[] // <--- این خط اضافه شد
 
   @@map("users")
 }
@@ -36,9 +38,48 @@ model Recording {
   jobs            ProcessingJob[]
   segments        TranscriptSegment[]
   notes           Note[]
+  photos          Photo[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("recordings")
+}
+
+model Subscription {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  plan      String   @default("FREE")
+  expiresAt DateTime? @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  amount    Int      
+  authority String?  
+  refId     String?  @map("ref_id")
+  status    String   @default("PENDING") 
+  plan      String   
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("transactions")
+}
+
+model Photo {
+  id          String   @id @default(uuid())
+  recordingId String   @map("recording_id")
+  storageKey  String   @map("storage_key")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  recording   Recording @relation(fields: [recordingId], references: [id])
+
+  @@map("photos")
 }
 
 model ProcessingJob {
@@ -70,14 +111,15 @@ model TranscriptSegment {
 }
 
 model Note {
-  id          String   @id @default(uuid())
-  recordingId String   @map("recording_id")
-  title       String?
-  content     String   // JSON در SQLite به صورت String ذخیره می‌شود
-  version     Int      @default(1)
-  createdAt   DateTime @default(now()) @map("created_at")
+  id              String   @id @default(uuid())
+  recordingId     String   @unique @map("recording_id")
+  title           String?
+  content         String
+  originalContent String   @map("original_content")
+  version         Int      @default(1)
+  createdAt       DateTime @default(now()) @map("created_at")
 
-  recording   Recording @relation(fields: [recordingId], references: [id])
+  recording       Recording @relation(fields: [recordingId], references: [id])
 
   @@map("notes")
 }
