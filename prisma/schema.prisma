@@ -9,17 +9,37 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String?   @map("password_hash")
-  status       String    @default("active")
-  role         String    @default("STUDENT")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id            String    @id @default(uuid())
+  email         String?   @unique 
+  phone         String?   @unique 
+  passwordHash  String?   @map("password_hash") 
+  status        String    @default("active")
+  role          String    @default("STUDENT")
   
-  recordings   Recording[]
-  auditLogs    AuditLog[]
-  subscription Subscription? 
-  transactions Transaction[] // <--- این خط اضافه شد
+  // --- اطلاعات آکادمیک جدید ---
+  name          String?   
+  age           Int?      
+  major         String?   
+  university    String?   
+  degree        String?   
+
+  // --- فیلدهای امنیتی ---
+  emailVerified DateTime? @map("email_verified")
+  phoneVerified DateTime? @map("phone_verified")
+  
+  // --- فیلدهای بازیابی رمز عبور ---
+  resetToken    String?   @unique @map("reset_token")
+  resetTokenExpiry DateTime? @map("reset_token_expiry")
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  
+  recordings    Recording[]
+  auditLogs     AuditLog[]
+  subscription  Subscription? 
+  transactions  Transaction[]
+  
+  // <--- این خط را به اینجا منتقل کردم (قبل از @@map) --->
+  researchOptIn Boolean @default(false) @map("research_opt_in")
 
   @@map("users")
 }
@@ -114,8 +134,12 @@ model Note {
   id              String   @id @default(uuid())
   recordingId     String   @unique @map("recording_id")
   title           String?
-  content         String
+  content         String   
   originalContent String   @map("original_content")
+  
+  contentJson     String?  @map("content_json")     // <-- این خط باید باشد
+  schemaVersion   String   @default("1.0.0") @map("schema_version")  // <-- این خط هم
+  
   version         Int      @default(1)
   createdAt       DateTime @default(now()) @map("created_at")
 

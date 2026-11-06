@@ -1,16 +1,42 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
+import { z } from 'zod';
+
+// قیمت‌های ثابت در سرور (به تومان)
+const PLAN_PRICES = {
+  STUDENT: 200_000,
+  PRO: 500_000,
+} as const;
+
+const requestSchema = z.object({
+  plan: z.enum(['STUDENT', 'PRO']),
+});
 
 export async function POST(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { plan, amount } = await req.json();
+    const merchantId = process.env.ZARINPAL_MERCHANT_ID;
+    const callbackUrl = process.env.ZARINPAL_CALLBACK_URL;
 
-    // ۱. ثبت تراکنش در دیتابیس
-    const transaction = await (prisma as any).transaction.create({
+    if (!merchantId || !callbackUrl) {
+      return NextResponse.json({ error: 'تنظیمات درگاه پرداخت ناقص است' }, { status: 503 });
+    }
+
+    const body = await req.json();
+    const validation = requestSchema.safeParse(body);
+    
+    if (!validation.success) {
+      return NextResponse.json({ error: 'پلن نامعتبر است' }, { status: 400 });
+    }
+
+    const { plan } = validation.data;
+    const amount = PLAN_PRICES[plan];
+
+    // ثبت تراکنش در دیتابیس
+    const transaction = await prisma.transaction.create({
       data: {
         userId: session.user.id,
         amount,
@@ -19,44 +45,45 @@ export async function POST(req: Request) {
       },
     });
 
-    // ۲. ارسال درخواست به زرین‌پال با مدیریت خطای شبکه
-    let data;
+    // ارسال درخواست به زرین‌پال (Sandbox)
     try {
       const response = await fetch('https://sandbox.zarinpal.com/pg/v4/payment/request.json', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({
-          merchant_id: process.env.ZARINPAL_MERCHANT_ID,
-          amount: amount * 10,
+          merchant_id: merchantId,
+          amount: amount * 10, // تبدیل تومان به ریال
           description: `خرید پلن ${plan} در NoteAI`,
-          callback_url: process.env.ZARINPAL_CALLBACK_URL,
+          callback_url: callbackUrl,
         }),
-        // تنظیم تایم‌اوت برای جلوگیری از گیر کردن بی‌نهایت
-        signal: AbortSignal.timeout(10000) 
+        signal: AbortSignal.timeout(10000), // تایم‌اوت ۱۰ ثانیه‌ای
       });
-      data = await response.json();
-    } catch (networkError) {
-      console.error('Network Error connecting to Zarinpal:', networkError);
-      // آپدیت تراکنش به وضعیت خطا
-      await (prisma as any).transaction.update({
+
+      const data = await response.json();
+
+      if (data.data && data.data.code === 100) {
+        await prisma.transaction.update({
+          where: { id: transaction.id },
+          data: { authority: data.data.authority },
+        });
+        
+        return NextResponse.json({ 
+          success: true, 
+          paymentUrl: `https://sandbox.zarinpal.com/pg/StartPay/${data.data.authority}` 
+        });
+      } else {
+        await prisma.transaction.update({
+          where: { id: transaction.id },
+          data: { status: 'FAILED' },
+        });
+        return NextResponse.json({ error: 'خطا در اتصال به درگاه' }, { status: 502 });
+      }
+    } catch (err) {
+      await prisma.transaction.update({
         where: { id: transaction.id },
         data: { status: 'FAILED' },
       });
-      return NextResponse.json({ error: 'عدم ارتباط با درگاه پرداخت. لطفاً VPN خود را خاموش کنید و دوباره تلاش کنید.' }, { status: 503 });
-    }
-
-    if (data.data && data.data.code === 100) {
-      await (prisma as any).transaction.update({
-        where: { id: transaction.id },
-        data: { authority: data.data.authority },
-      });
-
-      return NextResponse.json({ 
-        success: true, 
-        paymentUrl: `https://sandbox.zarinpal.com/pg/StartPay/${data.data.authority}` 
-      });
-    } else {
-      return NextResponse.json({ error: 'خطا در اتصال به درگاه پرداخت' }, { status: 500 });
+      return NextResponse.json({ error: 'عدم ارتباط با درگاه پرداخت' }, { status: 503 });
     }
   } catch (error) {
     console.error('Payment Request Error:', error);

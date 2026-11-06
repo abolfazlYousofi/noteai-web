@@ -4,6 +4,7 @@ import { verify } from '@node-rs/argon2';
 import prisma from '@/lib/prisma';
 import { z } from 'zod';
 import authConfig from './auth.config';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig, // تنظیمات پایه
@@ -23,8 +24,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsedCredentials.success) return null;
         const { email, password } = parsedCredentials.data;
 
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !user.passwordHash) return null;
+const rl = checkRateLimit({ key: `login:${email}`, limit: 10, windowMs: 15 * 60 * 1000 });
+if (!rl.allowed) {
+  throw new Error('تعداد تلاش‌های ورود بیش از حد مجاز. لطفاً ۱۵ دقیقه دیگر امتحان کنید.');
+}
+
+const user = await prisma.user.findUnique({ where: { email } });        if (!user || !user.passwordHash) return null;
 
         const passwordsMatch = await verify(user.passwordHash, password);
         if (!passwordsMatch) return null;

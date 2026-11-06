@@ -8,6 +8,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const role = (session.user as any)?.role;
   const email = session.user?.email;
+  const ADMIN_ROLES = ['SUPER_ADMIN', 'SECURITY_ADMIN', 'SYSTEM_ADMIN', 'SUPPORT_AGENT', 'FINANCE_MANAGER', 'CONTENT_MANAGER', 'AI_OPERATIONS_MANAGER', 'AUDITOR'];
+if (!ADMIN_ROLES.includes(role)) redirect('/dashboard');
 
   return (
     <div className="site-shell" style={{ minHeight: '100vh', display: 'flex' }}>

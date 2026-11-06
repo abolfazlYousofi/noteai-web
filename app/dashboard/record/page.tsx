@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -11,6 +11,15 @@ export default function RecordPage() {
   const [hasConsent, setHasConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
+
+  const photoObjectUrls = useMemo(
+  () => photos.map(p => URL.createObjectURL(p)),
+  [photos]
+);
+useEffect(
+  () => () => photoObjectUrls.forEach(u => URL.revokeObjectURL(u)),
+  [photoObjectUrls]
+);
 
   // استیت‌های جدید برای دوربین
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -299,7 +308,7 @@ export default function RecordPage() {
                 {photos.map((p, i) => (
                   <div key={i} style={{ position: 'relative' }}>
                     <img 
-                      src={URL.createObjectURL(p)} 
+                      src={photoObjectUrls[i]} 
                       alt="پیش‌نمایش" 
                       style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '2px solid var(--line)' }} 
                     />

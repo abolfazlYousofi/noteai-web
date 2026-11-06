@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
+import { z } from 'zod';
+
+const updateSchema = z.object({
+  contentJson: z.string(), // دریافت ساختار JSON به صورت رشته
+});
 
 export async function PATCH(
   req: Request,
@@ -12,10 +17,15 @@ export async function PATCH(
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { content } = body;
+    const validation = updateSchema.safeParse(body);
 
-    if (!content) return NextResponse.json({ error: 'متن خالی است' }, { status: 400 });
+    if (!validation.success) {
+      return NextResponse.json({ error: 'اطلاعات نامعتبر است' }, { status: 400 });
+    }
 
+    const { contentJson } = validation.data;
+
+    // بررسی مالکیت
     const note = await prisma.note.findUnique({
       where: { id: resolvedParams.noteId },
       include: { recording: true },
@@ -25,19 +35,17 @@ export async function PATCH(
       return NextResponse.json({ error: 'دسترسی غیرمجاز' }, { status: 404 });
     }
 
-    // آپدیت متن، اما originalContent دست نخورده باقی می‌ماند
+    // آپدیت جزوه
     const updatedNote = await prisma.note.update({
       where: { id: resolvedParams.noteId },
       data: { 
-        content, // متن جدید (ویرایش شده)
+        contentJson: contentJson,
+        content: contentJson, // برای سازگاری، متن ساده را هم آپدیت می‌کنیم
         version: { increment: 1 } 
       },
     });
 
-    // در آینده اینجا می‌توانیم منطقی بنویسیم که اختلاف بین content و originalContent را استخراج کند
-    // و به عنوان داده آموزشی (Fine-tuning dataset) ذخیره کند.
-
-    return NextResponse.json({ success: true, note: updatedNote });
+    return NextResponse.json({ success: true, version: updatedNote.version });
   } catch (error) {
     console.error('Update Note Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -6,13 +6,11 @@ import path from 'path';
 
 export async function POST(req: Request) {
   try {
-    // ۱. بررسی احراز هویت
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // ۲. دریافت فایل و اطلاعات از فرم
     const formData = await req.formData();
     const audioFile = formData.get('audio') as File;
     const durationStr = formData.get('duration') as string;
@@ -23,22 +21,21 @@ export async function POST(req: Request) {
 
     const durationSeconds = parseInt(durationStr, 10) || 0;
 
-    // ۳. ذخیره فایل صوتی در پوشه public/uploads (برای محیط لوکال)
     const bytes = await audioFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
-    // ساخت یک نام فایل یکتا
     const filename = `recording-${Date.now()}.webm`;
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
     
-    // اطمینان از وجود پوشه
+    // تغییر مسیر به پوشه خصوصی (خارج از public)
+    const uploadDir = path.join(process.cwd(), 'private-uploads');
+    
     await fs.mkdir(uploadDir, { recursive: true });
     const filePath = path.join(uploadDir, filename);
     await fs.writeFile(filePath, buffer);
 
-    const storageKey = `/uploads/${filename}`;
+    // ذخیره فقط نام فایل در دیتابیس (نه مسیر کامل)
+    const storageKey = filename;
 
-    // ۴. ایجاد رکورد در دیتابیس
     const recording = await prisma.recording.create({
       data: {
         userId: session.user.id,
@@ -49,7 +46,23 @@ export async function POST(req: Request) {
       },
     });
 
-    // ۵. ایجاد جاب برای پردازش هوش مصنوعی
+    // آپلود عکس‌ها (در صورت وجود)
+    const photos = formData.getAll('photos') as File[];
+    for (const photo of photos) {
+      const photoBytes = await photo.arrayBuffer();
+      const photoBuffer = Buffer.from(photoBytes);
+      const photoName = `photo-${Date.now()}-${Math.random()}.jpg`;
+      const photoPath = path.join(uploadDir, photoName);
+      await fs.writeFile(photoPath, photoBuffer);
+
+      await prisma.photo.create({
+        data: {
+          recordingId: recording.id,
+          storageKey: photoName, // فقط نام فایل
+        }
+      });
+    }
+
     await prisma.processingJob.create({
       data: {
         recordingId: recording.id,

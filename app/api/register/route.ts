@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { hash } from '@node-rs/argon2';
 import { z } from 'zod';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 const registerSchema = z.object({
   email: z.string().email('ایمیل نامعتبر است'),
@@ -10,8 +11,17 @@ const registerSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const validation = registerSchema.safeParse(body);
+  const ip = getClientIp(req);
+  const rate = checkRateLimit({ key: `register:${ip}`, limit: 5, windowMs: 15 * 60 * 1000 });
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: 'تعداد تلاش‌ها بیش از حد مجاز. لطفاً بعداً امتحان کنید.' },
+      { status: 429, headers: { 'Retry-After': String(rate.retryAfter || 60) } }
+    );
+  }
+
+  const body = await req.json();
+  const validation = registerSchema.safeParse(body);
 
     if (!validation.success) {
       return NextResponse.json({ error: validation.error.issues[0].message }, { status: 400 });

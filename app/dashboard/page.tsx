@@ -3,6 +3,7 @@ import { auth, signOut } from '@/auth';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import ProcessButton from '../../components/ProcessButton';
+import DeleteRecordingButton from '@/components/DeleteRecordingButton';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -55,7 +56,7 @@ export default async function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {recordings.map((rec) => (
+              {recordings.map((rec: any) => (
                 <tr key={rec.id} style={{ borderBottom: '1px solid var(--line)', fontSize: '14px' }}>
                   <td style={{ padding: '15px 10px', fontWeight: 'bold' }}>{rec.title}</td>
                   <td style={{ padding: '15px 10px', fontFamily: 'monospace' }}>{formatTime(rec.durationSeconds)}</td>
@@ -67,14 +68,17 @@ export default async function DashboardPage() {
                     )}
                   </td>
                   <td style={{ padding: '15px 10px' }}>
-                    {rec.status === 'processed' && rec.notes.length > 0 ? (
-                      <Link href={`/dashboard/notes/${rec.id}`} className="button button-primary button-small">
-                        مشاهده جزوه
-                      </Link>
-                    ) : (
-                      <ProcessButton recordingId={rec.id} />
-                    )}
-                  </td>
+  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+    {rec.status === 'processed' && rec.notes.length > 0 ? (
+      <Link href={`/dashboard/notes/${rec.id}`} className="button button-primary button-small">
+        مشاهده جزوه
+      </Link>
+    ) : (
+      <ProcessButton recordingId={rec.id} />
+    )}
+    <DeleteRecordingButton recordingId={rec.id} compact />
+  </div>
+</td>
                 </tr>
               ))}
             </tbody>

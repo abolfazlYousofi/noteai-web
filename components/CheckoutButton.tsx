@@ -11,13 +11,13 @@ export default function CheckoutButton({ planId, planName, amount }: { planId: s
       const res = await fetch('/api/payments/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: planId, amount }), // ارسال شناسه انگلیسی به سرور
+        body: JSON.stringify({ plan: planId }), // فقط شناسه پلن ارسال می‌شود
       });
       
       const data = await res.json();
       
       if (data.success && data.paymentUrl) {
-        window.location.href = data.paymentUrl;
+        window.location.href = data.paymentUrl; // هدایت به زرین‌پال
       } else {
         alert(data.error || 'خطا در اتصال به درگاه پرداخت');
         setLoading(false);

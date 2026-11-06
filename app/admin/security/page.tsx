@@ -26,7 +26,7 @@ export default async function AdminSecurityPage() {
             </tr>
           </thead>
           <tbody>
-            {logs.map((log) => (
+            {logs.map((log: any) => (
               <tr key={log.id} style={{ borderBottom: '1px solid var(--line)' }}>
                 <td style={{ padding: '16px', fontSize: '14px' }}>{log.user.email}</td>
                 <td style={{ padding: '16px' }}>

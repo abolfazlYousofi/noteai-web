@@ -2,8 +2,13 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
+import NoteViewer from '@/components/NoteViewer';
 import NoteEditor from '@/components/NoteEditor';
 import PrintButton from '@/components/PrintButton';
+import NoteChat from '@/components/NoteChat';
+import AddPhotosSection from '@/components/AddPhotosSection';
+import { NoteDocumentSchema } from '@/lib/ai/note-schema';
+import DeleteRecordingButton from '@/components/DeleteRecordingButton';
 
 export default async function NoteViewerPage({ params }: { params: Promise<{ recordingId: string }> }) {
   const resolvedParams = await params;
@@ -20,55 +25,69 @@ export default async function NoteViewerPage({ params }: { params: Promise<{ rec
   }
 
   const note = recording.notes[0];
+  
+  // پارس کردن JSON
+  let parsedNoteData = null;
+  if (note?.contentJson) {
+    try {
+      const rawJson = JSON.parse(note.contentJson);
+      const validation = NoteDocumentSchema.safeParse(rawJson);
+      if (validation.success) {
+        parsedNoteData = validation.data;
+      }
+    } catch (e) {
+      console.error("Failed to parse note JSON", e);
+    }
+  }
 
   return (
     <div>
-      {/* هدر صفحه (در چاپ مخفی می‌شود) */}
+      {/* هدر صفحه */}
       <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           <Link href="/dashboard/notes" className="button button-secondary button-small">بازگشت</Link>
-          <h1 style={{ fontSize: '20px', fontWeight: 'bold' }}>مشاهده جزوه</h1>
+          <h1 style={{ fontSize: '20px', fontWeight: 'bold' }}>جزوه هوشمند</h1>
         </div>
-        <PrintButton />
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <PrintButton />
+          <DeleteRecordingButton recordingId={recording.id} compact />
+        </div>
       </div>
 
-      {/* ساختار گرید (در چاپ به بلوک تبدیل می‌شود) */}
-      <div className="print-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '30px' }}>
+      <div className="print-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '30px' }}>
         
         {/* ستون اصلی: متن جزوه */}
         <div style={{ backgroundColor: 'var(--surface)', padding: '40px', borderRadius: '24px', boxShadow: 'var(--shadow)' }}>
+          
+          {/* پخش‌کننده صوتی */}
+          <div className="no-print" style={{ marginBottom: '30px', padding: '20px', backgroundColor: 'var(--surface-2)', borderRadius: '16px', border: '1px solid var(--line)' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '15px' }}>🎧 صوت اصلی جلسه</h3>
+            <audio controls src={`/api/media/${recording.storageKey}`} style={{ width: '100%' }}></audio>
+          </div>
+
           <div style={{ borderBottom: '1px solid var(--line)', paddingBottom: '20px', marginBottom: '30px' }}>
             <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--green)' }}>
               {note?.title || recording.title}
             </h2>
-            <p style={{ color: 'var(--text-soft)', fontSize: '14px', marginTop: '10px' }}>
-              تولید شده توسط هوش مصنوعی NoteAI · {new Date(recording.createdAt).toLocaleDateString('fa-IR')}
-            </p>
           </div>
 
-          {/* کامپوننت ویرایشگر */}
-          {note ? (
-            <NoteEditor noteId={note.id} initialContent={note.content} />
+          {/* نمایش یا ویرایش */}
+          {parsedNoteData ? (
+            <NoteEditor noteId={note!.id} initialData={parsedNoteData} />
           ) : (
-            <p>جزوه‌ای یافت نشد.</p>
-          )}
-          
-          {/* عکس‌ها در چاپ به زیر متن منتقل می‌شوند */}
-          {recording.photos.length > 0 && (
-            <div className="print-photos">
-              {recording.photos.map((photo: { id: string; storageKey: string }) => (
-                <img 
-                  key={photo.id} 
-                  src={photo.storageKey} 
-                  alt="تخته کلاس" 
-                />
-              ))}
+            <div style={{ fontSize: '16px', lineHeight: '2.2', color: 'var(--text)', textAlign: 'justify', whiteSpace: 'pre-wrap' }}>
+              {note?.content}
             </div>
           )}
         </div>
 
-        {/* ستون کناری: عکس‌های تخته (در چاپ مخفی می‌شود) */}
+        {/* ستون کناری: چت و عکس‌ها */}
         <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* چت هوشمند */}
+          {note && <NoteChat noteId={note.id} />}
+
+          {/* عکس‌های تخته */}
           <div style={{ backgroundColor: 'var(--surface)', padding: '20px', borderRadius: '24px', border: '1px solid var(--line)' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               📸 عکس‌های تخته
@@ -81,7 +100,7 @@ export default async function NoteViewerPage({ params }: { params: Promise<{ rec
                 {recording.photos.map((photo: { id: string; storageKey: string }) => (
                   <img 
                     key={photo.id} 
-                    src={photo.storageKey} 
+                    src={`/api/media/${photo.storageKey}`} 
                     alt="تخته کلاس" 
                     style={{ width: '100%', borderRadius: '12px', border: '1px solid var(--line)', objectFit: 'cover' }} 
                   />
@@ -89,6 +108,7 @@ export default async function NoteViewerPage({ params }: { params: Promise<{ rec
               </div>
             )}
           </div>
+          <AddPhotosSection recordingId={recording.id} />
         </div>
 
       </div>

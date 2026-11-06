@@ -6,18 +6,22 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const authority = searchParams.get('Authority');
     const status = searchParams.get('Status');
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
     if (status !== 'OK' || !authority) {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/billing?status=failed`);
+      return NextResponse.redirect(`${siteUrl}/dashboard/billing?status=failed`);
     }
 
-    // پیدا کردن تراکنش
+    const merchantId = process.env.ZARINPAL_MERCHANT_ID;
+    if (!merchantId) return NextResponse.redirect(`${siteUrl}/dashboard/billing?status=error`);
+
+    // پیدا کردن تراکنش (فقط اگر در وضعیت PENDING باشد)
     const transaction = await prisma.transaction.findFirst({
-      where: { authority },
+      where: { authority, status: 'PENDING' },
     });
 
     if (!transaction) {
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/billing?status=notfound`);
+      return NextResponse.redirect(`${siteUrl}/dashboard/billing?status=notfound`);
     }
 
     // ارسال درخواست Verify به زرین‌پال
@@ -25,42 +29,44 @@ export async function GET(req: Request) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({
-        merchant_id: process.env.ZARINPAL_MERCHANT_ID,
-        amount: transaction.amount * 10, // مبلغ به ریال
+        merchant_id: merchantId,
+        amount: transaction.amount * 10,
         authority: authority,
       }),
+      signal: AbortSignal.timeout(10000),
     });
 
     const data = await response.json();
 
     if (data.data && data.data.code === 100) {
-      // ۱. آپدیت تراکنش به موفق
-      await prisma.transaction.update({
-        where: { id: transaction.id },
-        data: { status: 'SUCCESS', refId: data.data.ref_id.toString() },
+      // عملیات اتمیک: آپدیت تراکنش و ارتقای اشتراک با هم
+      await prisma.$transaction(async (tx) => {
+        await tx.transaction.update({
+          where: { id: transaction.id },
+          data: { status: 'SUCCESS', refId: data.data.ref_id.toString() },
+        });
+
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 30); // ۳۰ روز اعتبار
+
+        await tx.subscription.upsert({
+          where: { userId: transaction.userId },
+          update: { plan: transaction.plan, expiresAt },
+          create: { userId: transaction.userId, plan: transaction.plan, expiresAt },
+        });
       });
 
-      // ۲. ارتقای پلن کاربر
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30); // ۳۰ روز اعتبار
-
-      await prisma.subscription.upsert({
-        where: { userId: transaction.userId },
-        update: { plan: transaction.plan, expiresAt },
-        create: { userId: transaction.userId, plan: transaction.plan, expiresAt },
-      });
-
-      // ۳. هدایت کاربر به صفحه اشتراک با پیام موفقیت
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/billing?status=success`);
+      return NextResponse.redirect(`${siteUrl}/dashboard/billing?status=success`);
     } else {
       await prisma.transaction.update({
         where: { id: transaction.id },
         data: { status: 'FAILED' },
       });
-      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/billing?status=failed`);
+      return NextResponse.redirect(`${siteUrl}/dashboard/billing?status=failed`);
     }
   } catch (error) {
-    console.error('Verify Error:', error);
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/billing?status=error`);
+    console.error('Verify Payment Error:', error);
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    return NextResponse.redirect(`${siteUrl}/dashboard/billing?status=error`);
   }
 }

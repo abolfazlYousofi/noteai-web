@@ -1,82 +1,47 @@
 import type { Metadata, Viewport } from 'next';
 import { Vazirmatn } from 'next/font/google';
 import './globals.css';
-import { Providers } from './providers'; // ایمپورت پرووایدر NextAuth
+import { Providers } from './providers';
+import { ThemeProvider } from 'next-themes';
+import ScrollToTop from '@/components/layout/ScrollToTop';
 
-// ۱. تنظیم فونت فارسی وزیرمتن
-const vazirmatn = Vazirmatn({
-  subsets: ['arabic', 'latin'],
-  variable: '--font-vazirmatn',
-  display: 'swap',
-});
+const vazirmatn = Vazirmatn({ subsets: ['arabic', 'latin'], variable: '--font-vazirmatn' });
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://noteai.example'),
-  title: {
-    default: 'NoteAI | از شنیدن درس تا فهمیدن عمیق‌تر',
-    template: '%s | NoteAI',
-  },
-  description:
-    'با NoteAI صدای کلاس را به متن تبدیل کنید، از تخته عکس بگیرید و جزوه‌ای ساختاریافته و قابل ویرایش بسازید.',
-  applicationName: 'NoteAI',
-  keywords: [
-    'جزوه هوشمند',
-    'تبدیل صدا به متن فارسی',
-    'ضبط کلاس دانشگاه',
-    'هوش مصنوعی دانشجویی',
-    'تولید جزوه با هوش مصنوعی',
-    'تبدیل صدای استاد به جزوه',
-    'جزوه نویسی خودکار',
-  ],
-  openGraph: {
-    title: 'NoteAI | از شنیدن درس تا فهمیدن عمیق‌تر',
-    description: 'صدای کلاس، عکس تخته و اسلایدها را به یک جزوه منظم تبدیل کنید.',
-    locale: 'fa_IR',
-    type: 'website',
-  },
-  robots: { index: true, follow: true },
+  title: { default: 'NoteAI | دستیار هوشمند جزوه', template: '%s | NoteAI' },
+  description: 'با NoteAI صدای کلاس را به متن تبدیل کنید و جزوه بسازید.',
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#f8f6ef',
+  themeColor: '#060B18',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  // Structured Data (JSON-LD) for SEO - Section 19.4
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
     name: 'NoteAI',
     applicationCategory: 'EducationalApplication',
     operatingSystem: 'Web',
-    description: 'دستیار هوشمند جزوه‌نویسی برای دانشجویان. تبدیل صدای کلاس و عکس تخته به جزوه ساختاریافته با هوش مصنوعی.',
-    offers: {
-      '@type': 'Offer',
-      price: '0',
-      priceCurrency: 'IRR',
-    },
   };
 
   return (
     <html lang="fa" dir="rtl" suppressHydrationWarning className={vazirmatn.variable}>
-            <body style={{ fontFamily: 'var(--font-vazirmatn), sans-serif' }}>
+      <body style={{ fontFamily: 'var(--font-vazirmatn), sans-serif', margin: 0 }}>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
         
-        {/* پس‌زمینه پریمیوم و متحرک */}
-        <div className="premium-bg">
-          <div className="orb orb-green"></div>
-          <div className="orb orb-blue"></div>
-          <div className="orb orb-mint"></div>
-        </div>
-
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-        <Providers>
-          {children}
-        </Providers>
+        {/* ThemeProvider تم را در کل سایت مدیریت می‌کند */}
+        <ThemeProvider attribute="data-theme" defaultTheme="dark" enableSystem={false}>
+          <Providers>
+            {/* کلاس site-shell به اینجا منتقل شد تا تمام صفحات آن را داشته باشند */}
+            <div className="site-shell">
+              {children}
+            </div>
+          </Providers>
+        </ThemeProvider>
       </body>
     </html>
   );

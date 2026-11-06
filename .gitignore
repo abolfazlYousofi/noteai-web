@@ -1,33 +1,73 @@
-# dependencies
+# Dependencies
 /node_modules
+/.pnp
+.pnp.*
 
-# next.js
+# Next.js
 /.next/
 /out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-
-# local env files
-.env
-.env*.local
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
 next-env.d.ts
 
-# Prisma
-/prisma/*.db
+# Production
+/build
 
-# Uploads
-/public/uploads/*
+# Database
+*.db
+*.db-journal
+prisma/*.db
+
+# Private uploads (هرگز commit نشوند)
+/private-uploads/
+/uploads/
+/temp-chunks/
+/public/uploads/
+
+# Environment (کلیدها)
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+.env*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Temp
+*.tsbuildinfo
+.backup/
+
+# Backup scripts (خود اسکریپت‌ها - اختیاری)
+backup-p0-*/
+backup-p0-2-*/
+
+# AI agent caches
+.agents/
+.claude/
+.cursor/
+.devin/
+
+# Dump files (اختیاری - اگر می‌خواهی تاریخچه بماند، comment کن)
+noteai-dump.txt
+noteai-source-code.zip
+dump-noteai.js
+fix-p0.js
+fix-p0-2.js
+
+# Test files (اگر تست واقعی ساخت)
+test-*.webm
+test-*.mp3
+test-*.jpg

@@ -28,7 +28,7 @@ export default async function AdminUsersPage() {
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
+            {users.map((user: any) => (
               <tr key={user.id} style={{ borderBottom: '1px solid var(--line)' }}>
                 <td style={{ padding: '16px', fontSize: '14px', fontWeight: 'bold' }}>{user.email}</td>
                 <td style={{ padding: '16px' }}>
