@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -10,6 +11,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +43,26 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <input type="email" placeholder="ایمیل" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--line)', background: 'var(--background)' }} />
-          <input type="password" placeholder="رمز عبور (حداقل ۸ کاراکتر)" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--line)', background: 'var(--background)' }} />
+                    {/* فیلد رمز عبور با دکمه چشم */}
+          <div style={{ position: 'relative' }}>
+            <input 
+              type={showPassword ? 'text' : 'password'} 
+              placeholder="رمز عبور (حداقل ۸ کاراکتر)" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              required 
+              minLength={8} 
+              style={{ width: '100%', padding: '12px', paddingLeft: '40px', borderRadius: '8px', border: '1px solid var(--line)', background: 'var(--background)' }} 
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-soft)', display: 'flex', alignItems: 'center' }}
+              title={showPassword ? 'مخفی کردن رمز' : 'نمایش رمز'}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
           <button type="submit" disabled={loading} className="button button-primary" style={{ marginTop: '10px', height: '48px' }}>
             {loading ? 'در حال ثبت‌نام...' : 'ثبت‌نام'}
           </button>

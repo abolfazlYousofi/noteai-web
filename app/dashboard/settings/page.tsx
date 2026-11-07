@@ -6,6 +6,7 @@ import { signOut } from 'next-auth/react';
 import { AlertTriangle, KeyRound, Trash2, FlaskConical } from 'lucide-react';
 import ProfileSection from '@/components/ProfileSection';
 import { useEffect } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -15,6 +16,8 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [passLoading, setPassLoading] = useState(false);
   const [passMsg, setPassMsg] = useState({ type: '', text: '' });
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
 
   // استیت‌های حذف حساب
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -98,7 +101,7 @@ export default function SettingsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
                 <ProfileSection />
 
-        {/* بخش تغییر رمز عبور */}
+                {/* بخش تغییر رمز عبور */}
         <div style={{ backgroundColor: 'var(--surface)', padding: '30px', borderRadius: '24px', border: '1px solid var(--line)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
             <KeyRound size={20} style={{ color: 'var(--green)' }} />
@@ -112,29 +115,53 @@ export default function SettingsPage() {
           )}
 
           <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <input 
-              type="password" 
-              placeholder="رمز عبور فعلی" 
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              required
-              style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', backgroundColor: 'var(--surface-2)', color: 'var(--text)' }}
-            />
-            <input 
-              type="password" 
-              placeholder="رمز عبور جدید (حداقل ۸ کاراکتر)" 
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              minLength={8}
-              style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--line)', backgroundColor: 'var(--surface-2)', color: 'var(--text)' }}
-            />
-            <button type="submit" disabled={passLoading} className="button button-primary" style={{ alignSelf: 'flex-start', padding: '10px 30px' }}>
+            
+            {/* فیلد رمز عبور فعلی با دکمه چشم */}
+            <div style={{ position: 'relative', width: '100%' }}>
+              <input 
+                type={showCurrentPass ? 'text' : 'password'} 
+                placeholder="رمز عبور فعلی" 
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+                style={{ width: '100%', padding: '12px', paddingLeft: '40px', borderRadius: '10px', border: '1px solid var(--line)', backgroundColor: 'var(--surface-2)', color: 'var(--text)' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPass(!showCurrentPass)}
+                style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-soft)', display: 'flex', alignItems: 'center' }}
+                title={showCurrentPass ? 'مخفی کردن رمز' : 'نمایش رمز'}
+              >
+                {showCurrentPass ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+
+            {/* فیلد رمز عبور جدید با دکمه چشم */}
+            <div style={{ position: 'relative', width: '100%' }}>
+              <input 
+                type={showNewPass ? 'text' : 'password'} 
+                placeholder="رمز عبور جدید (حداقل ۸ کاراکتر)" 
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={8}
+                style={{ width: '100%', padding: '12px', paddingLeft: '40px', borderRadius: '10px', border: '1px solid var(--line)', backgroundColor: 'var(--surface-2)', color: 'var(--text)' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPass(!showNewPass)}
+                style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-soft)', display: 'flex', alignItems: 'center' }}
+                title={showNewPass ? 'مخفی کردن رمز' : 'نمایش رمز'}
+              >
+                {showNewPass ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+
+            <button type="submit" disabled={passLoading} className="button button-primary" style={{ alignSelf: 'flex-start', padding: '10px 30px', marginTop: '5px' }}>
               {passLoading ? 'در حال ذخیره...' : 'تغییر رمز'}
             </button>
           </form>
         </div>
-
         {/* بخش رضایت‌نامه پژوهش (جدید) */}
         <div style={{ backgroundColor: 'var(--surface)', padding: '30px', borderRadius: '24px', border: '1px solid var(--line)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>

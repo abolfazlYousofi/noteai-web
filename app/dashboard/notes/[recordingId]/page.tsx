@@ -9,6 +9,7 @@ import NoteChat from '@/components/NoteChat';
 import AddPhotosSection from '@/components/AddPhotosSection';
 import { NoteDocumentSchema } from '@/lib/ai/note-schema';
 import DeleteRecordingButton from '@/components/DeleteRecordingButton';
+import EditableTitle from '@/components/EditableTitle';
 
 export default async function NoteViewerPage({ params }: { params: Promise<{ recordingId: string }> }) {
   const resolvedParams = await params;
@@ -70,6 +71,7 @@ export default async function NoteViewerPage({ params }: { params: Promise<{ rec
               {note?.title || recording.title}
             </h2>
           </div>
+          <EditableTitle recordingId={recording.id} initialTitle={note?.title || recording.title} />
 
           {/* نمایش یا ویرایش */}
           {parsedNoteData ? (

@@ -95,6 +95,7 @@ model Photo {
   id          String   @id @default(uuid())
   recordingId String   @map("recording_id")
   storageKey  String   @map("storage_key")
+  capturedAtSeconds Float? @map("captured_at_seconds")
   createdAt   DateTime @default(now()) @map("created_at")
 
   recording   Recording @relation(fields: [recordingId], references: [id])
@@ -141,6 +142,7 @@ model Note {
   schemaVersion   String   @default("1.0.0") @map("schema_version")  // <-- این خط هم
   
   version         Int      @default(1)
+  shareToken      String?  @unique @map("share_token")
   createdAt       DateTime @default(now()) @map("created_at")
 
   recording       Recording @relation(fields: [recordingId], references: [id])

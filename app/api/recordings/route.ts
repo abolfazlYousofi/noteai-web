@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import fs from 'fs/promises';
 import path from 'path';
+import { randomUUID } from 'crypto';
 
 export async function POST(req: Request) {
   try {
@@ -21,10 +22,15 @@ export async function POST(req: Request) {
 
     const durationSeconds = parseInt(durationStr, 10) || 0;
 
-    const bytes = await audioFile.arrayBuffer();
+        const bytes = await audioFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
-    const filename = `recording-${Date.now()}.webm`;
+    // اصل Least Astonishment: حفظ پسوند واقعی فایل کاربر
+    const originalName = audioFile.name || 'audio.webm';
+    const ext = originalName.split('.').pop()?.toLowerCase() || 'webm';
+    const safeExt = ['mp3', 'm4a', 'wav', 'ogg', 'webm'].includes(ext) ? ext : 'webm';
+    
+    const filename = `recording-${randomUUID()}.${safeExt}`;
     
     // تغییر مسیر به پوشه خصوصی (خارج از public)
     const uploadDir = path.join(process.cwd(), 'private-uploads');

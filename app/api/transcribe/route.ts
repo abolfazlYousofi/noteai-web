@@ -10,6 +10,7 @@ import { NoteDocumentSchema } from '@/lib/ai/note-schema';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { splitAudioIntoChunks, cleanupDirectory } from '@/lib/ai/audio-processor';
 
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { recordingId, force } = await req.json();
+    const { recordingId, force, customPrompt } = await req.json();
     const rl = checkRateLimit({ key: `transcribe:${session.user.id}`, limit: 5, windowMs: 60 * 60 * 1000 });
 if (!rl.allowed) {
   return NextResponse.json(
@@ -197,7 +198,7 @@ if (!rl.allowed) {
     // ۴. تولید جزوه با LLM (با ساختار Zod)
     console.log('3. Generating structured notes with text and images...');
     
-        const systemPrompt = `
+      const systemPrompt = `
 [نقش]
 تو یک دستیار آموزشی حرفه‌ای برای دانشجویان فارسی‌زبان هستی. وظیفه‌ات تبدیل متن خام پیاده‌شده از صدای کلاس + تصاویر تخته/اسلاید، به یک "جزوه دانشگاهی ساختاریافته، دقیق و قابل مطالعه" است.
 
@@ -221,7 +222,6 @@ if (!rl.allowed) {
 - list: فهرست نکات هم‌سطح (بدون ترتیب منطقی). برای مراحل الگوریتم یا ویژگی‌های یک مفهوم از list استفاده کن (چون ترتیب دارد).
 - code: کد برنامه‌نویسی با language مشخص.
 - heading: زیرعنوان درون یک بخش (به‌ندرت — فقط اگر بخش خیلی بزرگ شد).
-
 
 [قواعد sourceRefs]
 برای هر بلوک paragraph یا equation، حتماً یک sourceRef از نوع audio با timestampStart و timestampEnd اضافه کن.
@@ -275,7 +275,11 @@ if (!rl.allowed) {
 - «در تصویر Y، فرمول ناخوانا بود»
 - «بین گفتار و تصویر تناقض وجود دارد: [توضیح]»
 - «مفهوم Z بدون تعریف کافی بیان شد»
+
+[دستورالعمل‌های ویژه کاربر]
+${customPrompt ? `کاربر از تو خواسته است که به این موارد توجه ویژه‌ای داشته باشی: "${customPrompt}". حتماً این خواسته را در تولید جزوه در نظر بگیر.` : 'دستور خاصی ندارد.'}
 `;
+
 
     const userContent: any[] = [
       { 

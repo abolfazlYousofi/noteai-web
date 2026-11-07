@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['ffmpeg-static'], // 🆕 اضافه کردن این خط
   async headers() {
     return [
       {
@@ -8,11 +9,11 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'X-Frame-Options',
-            value: 'DENY', // جلوگیری از Clickjacking
+            value: 'DENY',
           },
           {
             key: 'X-Content-Type-Options',
-            value: 'nosniff', // جلوگیری از حدس نوع فایل
+            value: 'nosniff',
           },
           {
             key: 'Referrer-Policy',
@@ -20,7 +21,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Strict-Transport-Security',
-            value: 'max-age=31536000; includeSubDomains', // اجبار به استفاده از HTTPS
+            value: 'max-age=31536000; includeSubDomains',
           },
         ],
       },

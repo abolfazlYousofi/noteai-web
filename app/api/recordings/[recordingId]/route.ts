@@ -3,7 +3,9 @@ import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
 import fs from 'fs/promises';
 import path from 'path';
+import { z } from 'zod';
 
+// ==================== حذف جلسه ====================
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ recordingId: string }> }
@@ -51,5 +53,56 @@ export async function DELETE(
   } catch (error) {
     console.error('Delete Recording Error:', error);
     return NextResponse.json({ error: 'خطا در حذف جلسه' }, { status: 500 });
+  }
+}
+
+// ==================== ویرایش عنوان جلسه ====================
+const patchSchema = z.object({
+  title: z.string().min(1, 'عنوان نمی‌تواند خالی باشد').max(200, 'عنوان بسیار طولانی است'),
+});
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ recordingId: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { recordingId } = await params;
+    const body = await req.json();
+    const validation = patchSchema.safeParse(body);
+
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error.issues[0].message }, { status: 400 });
+    }
+
+    const recording = await prisma.recording.findUnique({ 
+      where: { id: recordingId } 
+    });
+
+    if (!recording || recording.userId !== session.user.id) {
+      return NextResponse.json({ error: 'جلسه یافت نشد' }, { status: 404 });
+    }
+
+    // آپدیت همزمان عنوان در Recording و Note
+    await prisma.$transaction(async (tx) => {
+      await tx.recording.update({
+        where: { id: recordingId },
+        data: { title: validation.data.title },
+      });
+      
+      await tx.note.updateMany({
+        where: { recordingId },
+        data: { title: validation.data.title },
+      });
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Update Title Error:', error);
+    return NextResponse.json({ error: 'خطا در سرور' }, { status: 500 });
   }
 }
