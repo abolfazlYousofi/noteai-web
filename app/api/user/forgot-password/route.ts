@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import crypto from 'crypto';
 import { z } from 'zod';
+import { sendPasswordResetEmail } from '@/lib/email'; // 🆕 ایمپورت شد
 
 const schema = z.object({ email: z.string().email() });
 
@@ -14,30 +15,30 @@ export async function POST(req: Request) {
     const { email } = validation.data;
     const user = await prisma.user.findUnique({ where: { email } });
 
-    // به دلایل امنیتی (جلوگیری از افشای ایمیل‌ها)، همیشه پیام موفقیت برمی‌گردانیم
-    if (!user) {
-      return NextResponse.json({ success: true, message: 'اگر این ایمیل در سیستم باشد، لینک ارسال شد.' });
+    if (user) {
+      // ساخت توکن و زمان انقضا
+      const resetToken = crypto.randomUUID();
+      const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
+
+      await prisma.user.update({
+        where: { email },
+        data: { resetToken, resetTokenExpiry },
+      });
+
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+      const resetLink = `${siteUrl}/reset-password?token=${resetToken}`;
+
+      // 🆕 ارسال ایمیل واقعی
+      await sendPasswordResetEmail(email, resetLink);
+      
+      // برای دیباگ در محیط لوکال، هم چاپ می‌کنیم
+      console.log('\n========================================');
+      console.log('🔐 لینک بازیابی (برای تست):', resetLink);
+      console.log('========================================\n');
     }
 
-    // ساخت توکن یکتا و زمان انقضا (۱ ساعت)
-    const resetToken = crypto.randomUUID();
-    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
-
-    await prisma.user.update({
-      where: { email },
-      data: { resetToken, resetTokenExpiry },
-    });
-
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-    const resetLink = `${siteUrl}/reset-password?token=${resetToken}`;
-
-    // 🆕 در محیط واقعی، اینجا ایمیل ارسال می‌شود. فعلاً در کنسول چاپ می‌کنیم.
-    console.log('\n========================================');
-    console.log('🔐 لینک بازیابی رمز عبور (برای تست):');
-    console.log(resetLink);
-    console.log('========================================\n');
-
-    return NextResponse.json({ success: true, message: 'لینک بازیابی در ترمینال چاپ شد.' });
+    // به دلایل امنیتی، همیشه پیام موفقیت برمی‌گردانیم
+    return NextResponse.json({ success: true, message: 'اگر این ایمیل در سیستم باشد، لینک ارسال شد.' });
   } catch (error) {
     console.error('Forgot Password Error:', error);
     return NextResponse.json({ error: 'خطا در سرور' }, { status: 500 });

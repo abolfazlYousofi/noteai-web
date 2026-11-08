@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { hash } from '@node-rs/argon2';
 import { z } from 'zod';
-import { checkRateLimit, getClientIp } from '@/lib/rate-limit'; // 🆕 ایمپورت توابع امنیتی
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { sendWelcomeEmail } from '@/lib/email'; // 🆕 ایمپورت شد
 
-// 🛡️ قوانین سخت‌گیرانه رمز عبور (حروف بزرگ، کوچک، عدد و طول ۸ تا ۱۵)
 const registerSchema = z.object({
   email: z.string().email('ایمیل نامعتبر است'),
   password: z.string()
@@ -17,10 +17,8 @@ const registerSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    // 🆕 اعمال محدودیت درخواست (Rate Limit)
     const ip = getClientIp(req);
     const rate = checkRateLimit({ key: `register:${ip}`, limit: 5, windowMs: 15 * 60 * 1000 });
-    
     if (!rate.allowed) {
       return NextResponse.json(
         { error: 'تعداد تلاش‌ها بیش از حد مجاز. لطفاً بعداً امتحان کنید.' },
@@ -43,10 +41,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'این ایمیل قبلاً ثبت شده است' }, { status: 400 });
     }
 
-    // هش کردن رمز عبور با Argon2id
+    // هش کردن رمز عبور
     const passwordHash = await hash(password);
 
-    // ساخت کاربر جدید با نقش پیش‌فرض STUDENT
+    // 🆕 ساخت کاربر جدید
     const user = await prisma.user.create({
       data: {
         email,
@@ -63,6 +61,9 @@ export async function POST(req: Request) {
         ipAddress: ip,
       },
     });
+
+    // 🆕 ارسال ایمیل خوش‌آمدگویی (حالا متغیرهای email و user در دسترس هستند)
+    await sendWelcomeEmail(email, user.email || 'دانشجوی عزیز');
 
     return NextResponse.json({ success: true, message: 'ثبت‌نام با موفقیت انجام شد' }, { status: 201 });
   } catch (error) {

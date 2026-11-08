@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { auth, signOut } from '@/auth';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
-import { Home, Users, ShieldAlert, FileAudio, Settings, MessageSquare, Shield } from 'lucide-react';
+import { Home, Users, ShieldAlert, FileAudio, Settings, MessageSquare, Shield, Wallet } from 'lucide-react';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -41,6 +41,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
           <Link href="/admin/ai-ops" className="side-item"><FileAudio size={18} /> عملیات هوش مصنوعی</Link>
           <Link href="/admin/security" className="side-item"><ShieldAlert size={18} /> مرکز امنیت</Link>
+                    <Link href="/admin/accounting" className="side-item">
+            <Wallet size={18} /> حسابداری و مالی
+          </Link>
         </nav>
 
         <div style={{ padding: '20px', borderTop: '1px solid var(--line)' }}>

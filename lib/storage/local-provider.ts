@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { StorageProvider } from './storage-provider';
+import { encryptBuffer, decryptBuffer } from '@/lib/security/encryption';
 
 export class LocalStorageProvider implements StorageProvider {
   private uploadDir = path.join(process.cwd(), 'private-uploads');
@@ -8,13 +9,20 @@ export class LocalStorageProvider implements StorageProvider {
   async saveFile(fileBuffer: Buffer, fileName: string): Promise<string> {
     await fs.mkdir(this.uploadDir, { recursive: true });
     const filePath = path.join(this.uploadDir, fileName);
-    await fs.writeFile(filePath, fileBuffer);
+    
+    // رمزنگاری قبل از ذخیره
+    const encryptedBuffer = encryptBuffer(fileBuffer);
+    await fs.writeFile(filePath, encryptedBuffer);
+    
     return fileName;
   }
 
   async readFile(fileKey: string): Promise<Buffer> {
     const filePath = path.join(this.uploadDir, fileKey);
-    return await fs.readFile(filePath);
+    const encryptedBuffer = await fs.readFile(filePath);
+    
+    // رمزگشایی هنگام خواندن
+    return decryptBuffer(encryptedBuffer);
   }
 
   async deleteFile(fileKey: string): Promise<void> {
@@ -27,7 +35,6 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async getDownloadUrl(fileKey: string): Promise<string> {
-    // در حالت لوکال، فایل‌ها از طریق API خودمان پخش می‌شوند
     return `/api/media/${fileKey}`;
   }
 }

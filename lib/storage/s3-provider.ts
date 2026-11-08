@@ -1,25 +1,28 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { StorageProvider } from './storage-provider';
+import { encryptBuffer, decryptBuffer } from '@/lib/security/encryption';
 
-// این متغیرها باید در فایل .env تعریف شوند
 const s3Client = new S3Client({
   region: process.env.S3_REGION || 'default',
-  endpoint: process.env.S3_ENDPOINT, 
+  endpoint: process.env.S3_ENDPOINT,
   credentials: {
     accessKeyId: process.env.S3_ACCESS_KEY || '',
     secretAccessKey: process.env.S3_SECRET_KEY || '',
   },
-  forcePathStyle: true, // برای سازگاری با آروان/لیارا
+  forcePathStyle: true,
 });
 
 const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'noteai-uploads';
 
 export class S3StorageProvider implements StorageProvider {
   async saveFile(fileBuffer: Buffer, fileName: string): Promise<string> {
+    // رمزنگاری قبل از آپلود
+    const encryptedBuffer = encryptBuffer(fileBuffer);
+
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: fileName,
-      Body: fileBuffer,
+      Body: encryptedBuffer,
     });
     
     await s3Client.send(command);
@@ -35,9 +38,11 @@ export class S3StorageProvider implements StorageProvider {
     const response = await s3Client.send(command);
     if (!response.Body) throw new Error('File not found on S3');
     
-    // تبدیل Stream به Buffer
     const byteArray = await response.Body.transformToByteArray();
-    return Buffer.from(byteArray);
+    const encryptedBuffer = Buffer.from(byteArray);
+
+    // رمزگشایی هنگام دانلود
+    return decryptBuffer(encryptedBuffer);
   }
 
   async deleteFile(fileKey: string): Promise<void> {
@@ -49,7 +54,6 @@ export class S3StorageProvider implements StorageProvider {
   }
 
   async getDownloadUrl(fileKey: string): Promise<string> {
-    // اگر از API خودمان استفاده می‌کنیم، همین مسیر کافی است
     return `/api/media/${fileKey}`;
   }
 }
