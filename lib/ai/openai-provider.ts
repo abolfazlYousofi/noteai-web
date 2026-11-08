@@ -1,11 +1,9 @@
-// lib/ai/openai-provider.ts
 import OpenAI from 'openai';
 import { toFile } from 'openai/uploads';
 import { AIProvider, TranscribeOptions, TranscribeResult } from './provider';
 
 export class OpenAIProvider implements AIProvider {
   private client: OpenAI;
-  private model = 'whisper-1';
 
   constructor() {
     this.client = new OpenAI({
@@ -15,11 +13,11 @@ export class OpenAIProvider implements AIProvider {
   }
 
   async transcribe(options: TranscribeOptions): Promise<TranscribeResult> {
-    const file = await toFile(options.file, options.filename, { type: 'audio/webm' });
+    const file = await toFile(options.file, options.filename, { type: 'audio/mpeg' });
     
     const response = await this.client.audio.transcriptions.create({
       file,
-      model: this.model,
+      model: 'whisper-1',
       prompt: options.prompt,
       response_format: options.responseFormat || 'json',
       language: options.language,

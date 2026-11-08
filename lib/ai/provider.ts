@@ -5,8 +5,8 @@ export interface TranscribeOptions {
   file: Buffer;
   filename: string;
   prompt?: string;
-  responseFormat?: 'text' | 'verbose_json';
   language?: string;
+  responseFormat?: 'json' | 'verbose_json';
 }
 
 export interface TranscribeResult {
@@ -16,5 +16,4 @@ export interface TranscribeResult {
 
 export interface AIProvider {
   transcribe(options: TranscribeOptions): Promise<TranscribeResult>;
-  // در آینده می‌توانیم متدهای analyzeImage و generateNote را هم اینجا اضافه کنیم
 }

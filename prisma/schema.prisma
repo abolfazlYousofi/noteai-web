@@ -11,12 +11,13 @@ datasource db {
 model User {
   id            String    @id @default(uuid())
   email         String?   @unique 
+  originalEmail String?   @map("original_email") // 🆕 ایمیل اصلی برای حفظ سابقه
   phone         String?   @unique 
   passwordHash  String?   @map("password_hash") 
-  status        String    @default("active")
+  status        String    @default("active") // active, deleted, banned
   role          String    @default("STUDENT")
   
-  // --- اطلاعات آکادمیک جدید ---
+  // --- اطلاعات آکادمیک ---
   name          String?   
   age           Int?      
   major         String?   
@@ -27,18 +28,26 @@ model User {
   emailVerified DateTime? @map("email_verified")
   phoneVerified DateTime? @map("phone_verified")
   
-  // --- فیلدهای بازیابی رمز عبور ---
+  // --- بازیابی رمز عبور ---
   resetToken    String?   @unique @map("reset_token")
   resetTokenExpiry DateTime? @map("reset_token_expiry")
 
+  // --- فیلدهای جدید (Soft Delete & IP Tracking) ---
+  isDeleted     Boolean   @default(false) @map("is_deleted")
+  deletedAt     DateTime? @map("deleted_at")
+  lastIp        String?   @map("last_ip")
+  lastCountry   String?   @map("last_country")
+  isVpn         Boolean   @default(false) @map("is_vpn")
+
   createdAt     DateTime  @default(now()) @map("created_at")
   
+  // --- روابط ---
   recordings    Recording[]
   auditLogs     AuditLog[]
   subscription  Subscription? 
   transactions  Transaction[]
+  tickets       Ticket[]
   
-  // <--- این خط را به اینجا منتقل کردم (قبل از @@map) --->
   researchOptIn Boolean @default(false) @map("research_opt_in")
 
   @@map("users")
@@ -156,6 +165,8 @@ model AuditLog {
   userId    String   @map("user_id")
   action    String
   ipAddress String?  @map("ip_address")
+  country   String?  // 🆕
+  isVpn     Boolean  @default(false) @map("is_vpn") // 🆕
   createdAt DateTime @default(now()) @map("created_at")
 
   user      User     @relation(fields: [userId], references: [id])
@@ -173,4 +184,34 @@ model ChatMessage {
   note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
   @@map("chat_messages")
+}
+
+model Ticket {
+  id        String          @id @default(uuid())
+  userId    String          @map("user_id")
+  subject   String
+  status    String          @default("OPEN") // OPEN, ANSWERED, CLOSED
+  priority  String          @default("NORMAL") // LOW, NORMAL, HIGH
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  isReadByUser  Boolean @default(true) @map("is_read_by_user")  
+  isReadByAdmin Boolean @default(false) @map("is_read_by_admin") 
+
+  user      User            @relation(fields: [userId], references: [id])
+  messages  TicketMessage[]
+
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id        String   @id @default(uuid())
+  ticketId  String   @map("ticket_id")
+  senderId  String   @map("sender_id") // آیدی کاربر یا ادمین
+  isAdmin   Boolean  @default(false) @map("is_admin")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("ticket_messages")
 }
