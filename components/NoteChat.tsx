@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Send, Bot, User, Sparkles } from 'lucide-react';
 
 // سوالات پیشنهادی که کاربر می‌تواند با یک کلیک بپرسد
@@ -14,6 +14,21 @@ export default function NoteChat({ noteId }: { noteId: string }) {
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // 🆕 دریافت تاریخچه چت از دیتابیس هنگام لود صفحه
+  useEffect(() => {
+    fetch(`/api/chat?noteId=${noteId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.messages) {
+          setMessages(data.messages.map((m: any) => ({
+            role: m.role as 'user' | 'ai',
+            text: m.content
+          })));
+        }
+      })
+      .catch(err => console.error("Failed to load chat history", err));
+  }, [noteId]);
 
   const handleSend = async (text: string) => {
     if (!text.trim()) return;
@@ -61,8 +76,8 @@ export default function NoteChat({ noteId }: { noteId: string }) {
       {/* لیست پیام‌ها */}
       <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
         
-        {/* پیام خوش‌آمدگویی اولیه */}
-        {messages.length === 0 && (
+        {/* پیام خوش‌آمدگویی اولیه (فقط وقتی تاریخچه خالی است) */}
+        {messages.length === 0 && !loading && (
           <div style={{ display: 'flex', gap: '10px' }}>
             <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Bot size={18} style={{ color: 'var(--green)' }} />

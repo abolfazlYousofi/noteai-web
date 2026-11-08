@@ -18,6 +18,13 @@
   --green-light: #132a21;
   --mint: #1b382b;
   --shadow: 0 24px 65px rgba(0,0,0,.38);
+
+
+  
+  --glass-bg: rgba(12, 28, 23, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.5);
+  --glass-input-bg: rgba(0, 0, 0, 0.2);
 }
 
 /* تم روشن (ترکیب رنگ سبز ملایم برای چشم) */
@@ -43,6 +50,12 @@
   --green-light: #dcebe3;
   --mint: #d8e8dc;
   --shadow: 0 20px 55px rgba(35,59,48,.08);
+
+  /* 🆕 متغیرهای افکت شیشه‌ای (تم روشن) */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(0, 0, 0, 0.06);
+  --glass-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.08);
+  --glass-input-bg: rgba(255, 255, 255, 0.8);
 }
 
 * { box-sizing: border-box; }
@@ -602,5 +615,48 @@ button { cursor: pointer; }
 @media (min-width: 769px) {
   .mobile-bottom-nav {
     display: none;
+  }
+}
+
+@media print {
+  /* مخفی کردن منوها، دکمه‌ها و سایدبار هنگام چاپ */
+  aside, nav, button, .no-print, header, footer {
+    display: none !important;
+  }
+  
+  /* پس‌زمینه سفید برای صرفه‌جویی در جوهر */
+  body, .site-shell, .dashboard-main {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* تنظیم عرض صفحه برای چاپ */
+  .dashboard-main {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  /* جلوگیری از شکستن فرمول‌ها و کدها در وسط صفحه */
+  .katex-display, pre {
+    page-break-inside: avoid;
+  }
+}
+
+
+/* حذف کامل پس‌زمینه زرد Autofill مرورگر */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px var(--glass-input-bg) inset !important;
+    -webkit-text-fill-color: var(--text) !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* مخفی کردن بنر برند در موبایل */
+@media (max-width: 900px) {
+  .hide-on-mobile {
+    display: none !important;
   }
 }

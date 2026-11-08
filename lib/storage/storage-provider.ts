@@ -1,14 +1,15 @@
-// lib/storage/storage-provider.ts
 export interface UploadUrlResponse {
   uploadUrl: string;
   fileKey: string;
 }
 
 export interface StorageProvider {
-  // دریافت لینک برای آپلود مستقیم
-  getPresignedUploadUrl(fileKey: string, contentType: string): Promise<UploadUrlResponse>;
-  // دریافت لینک برای دانلود (پخش صدا)
-  getPresignedDownloadUrl(fileKey: string): Promise<string>;
+  // ذخیره فایل و برگرداندن نام آن (Key)
+  saveFile(fileBuffer: Buffer, fileName: string): Promise<string>;
+  // خواندن فایل (برای ارسال به Whisper یا پخش در صفحه)
+  readFile(fileKey: string): Promise<Buffer>;
   // حذف فایل
   deleteFile(fileKey: string): Promise<void>;
+  // دریافت لینک دانلود (برای S3 کاربرد دارد، در لوکال API ما این کار را می‌کند)
+  getDownloadUrl(fileKey: string): Promise<string>;
 }

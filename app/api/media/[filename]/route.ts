@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/auth';
-import fs from 'fs/promises';
-import path from 'path';
+import { getStorageProvider } from '@/lib/storage';
+import path from 'path'; // فقط برای تشخیص پسوند فایل نیاز است
 
 export async function GET(
   req: Request,
@@ -15,7 +15,7 @@ export async function GET(
     const session = await auth();
     if (!session?.user?.id) return new NextResponse('Unauthorized', { status: 401 });
 
-    // ۱. بررسی اینکه آیا این فایل متعلق به کاربر است یا خیر
+    // ۱. بررسی مالکیت فایل (اصل Complete Mediation)
     const recording = await prisma.recording.findFirst({
       where: { storageKey: filename, userId: session.user.id }
     });
@@ -28,24 +28,27 @@ export async function GET(
       return new NextResponse('Forbidden', { status: 403 });
     }
 
-    // ۲. خواندن فایل از پوشه خصوصی
-    const filePath = path.join(process.cwd(), 'private-uploads', filename);
+    // ۲. خواندن فایل از لایه واسط (استفاده از Storage Provider)
+    const storage = getStorageProvider();
     
     try {
-      const fileBuffer = await fs.readFile(filePath);
+      const fileBuffer = await storage.readFile(filename);
       const ext = path.extname(filename).toLowerCase();
       
       let contentType = 'audio/webm';
       if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
       if (ext === '.png') contentType = 'image/png';
+      if (ext === '.mp3') contentType = 'audio/mpeg';
+      if (ext === '.m4a') contentType = 'audio/mp4';
 
-      return new NextResponse(fileBuffer, {
+            return new NextResponse(new Uint8Array(fileBuffer), {
         headers: { 'Content-Type': contentType },
       });
     } catch (err) {
       return new NextResponse('File not found', { status: 404 });
     }
   } catch (error) {
+    console.error('Media Read Error:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

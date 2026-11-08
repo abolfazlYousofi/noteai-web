@@ -4,12 +4,15 @@ import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import NoteViewer from '@/components/NoteViewer';
 import NoteEditor from '@/components/NoteEditor';
-import PrintButton from '@/components/PrintButton';
+import ExportTools from '@/components/ExportTools';
 import NoteChat from '@/components/NoteChat';
+import ShareButton from '@/components/ShareButton'; 
 import AddPhotosSection from '@/components/AddPhotosSection';
 import { NoteDocumentSchema } from '@/lib/ai/note-schema';
 import DeleteRecordingButton from '@/components/DeleteRecordingButton';
 import EditableTitle from '@/components/EditableTitle';
+import StudyTools from '@/components/StudyTools';
+
 
 export default async function NoteViewerPage({ params }: { params: Promise<{ recordingId: string }> }) {
   const resolvedParams = await params;
@@ -49,8 +52,10 @@ export default async function NoteViewerPage({ params }: { params: Promise<{ rec
           <Link href="/dashboard/notes" className="button button-secondary button-small">بازگشت</Link>
           <h1 style={{ fontSize: '20px', fontWeight: 'bold' }}>جزوه هوشمند</h1>
         </div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <PrintButton />
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {note && <ShareButton noteId={note.id} />}
+          {/* دکمه قبلی را حذف و کامپوننت جدید را جایگزین کن */}
+          <ExportTools noteData={parsedNoteData} fallbackText={note?.content || ''} />
           <DeleteRecordingButton recordingId={recording.id} compact />
         </div>
       </div>
@@ -73,7 +78,7 @@ export default async function NoteViewerPage({ params }: { params: Promise<{ rec
           </div>
           <EditableTitle recordingId={recording.id} initialTitle={note?.title || recording.title} />
 
-          {/* نمایش یا ویرایش */}
+                    {/* نمایش یا ویرایش */}
           {parsedNoteData ? (
             <NoteEditor noteId={note!.id} initialData={parsedNoteData} />
           ) : (
@@ -81,6 +86,12 @@ export default async function NoteViewerPage({ params }: { params: Promise<{ rec
               {note?.content}
             </div>
           )}
+
+          {/* 🆕 بخش فلش‌کارت و آزمون */}
+          {note && (
+            <StudyTools noteId={note.id} />
+          )}
+          
         </div>
 
         {/* ستون کناری: چت و عکس‌ها */}

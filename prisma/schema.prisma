@@ -137,6 +137,7 @@ model Note {
   title           String?
   content         String   
   originalContent String   @map("original_content")
+  chatMessages ChatMessage[] 
   
   contentJson     String?  @map("content_json")     // <-- این خط باید باشد
   schemaVersion   String   @default("1.0.0") @map("schema_version")  // <-- این خط هم
@@ -160,4 +161,16 @@ model AuditLog {
   user      User     @relation(fields: [userId], references: [id])
 
   @@map("audit_logs")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  noteId    String   @map("note_id")
+  role      String
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
 }
