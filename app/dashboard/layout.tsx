@@ -3,10 +3,18 @@ import { auth, signOut } from '@/auth';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { Home, Mic, FileText, Settings, CreditCard, Shield, MessageSquare } from 'lucide-react';
+import OnboardingTour from '@/components/OnboardingTour';
+import { isProfileComplete } from '@/lib/auth/profile-check';
+import ProfileBlocker from '@/components/ProfileBlocker';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
+
+  // 🆕 چک کردن وضعیت پروفایل
+  const profileComplete = await isProfileComplete(session.user.id);
+  const isIncomplete = !profileComplete;
+
 
     // 🆕 فقط تیکت‌هایی که کاربر نخوانده است
   const unreadTickets = await prisma.ticket.count({
@@ -73,6 +81,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <Link href="/dashboard/notes"><FileText /> جزوات</Link>
         <Link href="/dashboard/settings"><Settings /> تنظیمات</Link>
       </nav>
+
+            <OnboardingTour />
+
+                {/* 🆕 تور آموزشی */}
+      <OnboardingTour />
+      
+      {/* 🆕 بلاکر پروفایل */}
+      <ProfileBlocker isIncomplete={isIncomplete} />
     </div>
   );
 }

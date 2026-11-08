@@ -4,14 +4,25 @@ import { auth } from '@/auth';
 import { getStorageProvider } from '@/lib/storage';
 import { randomUUID } from 'crypto';
 import path from 'path';
+//import { isProfileComplete } from '@/lib/auth/profile-check'; // 🆕 ایمپورت شد
 
 export async function POST(req: Request) {
   try {
+    // ۱. بررسی احراز هویت
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // ۲. 🆕 بررسی تکمیل پروفایل
+    /*if (!(await isProfileComplete(session.user.id))) {
+      return NextResponse.json(
+        { error: 'لطفاً ابتدا اطلاعات پروفایل خود را تکمیل کنید.', code: 'PROFILE_INCOMPLETE' }, 
+        { status: 403 }
+      );
+    }*/
+
+    // ۳. دریافت فایل‌ها
     const formData = await req.formData();
     const audioFile = formData.get('audio') as File;
     const durationStr = formData.get('duration') as string;
@@ -20,22 +31,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
     }
 
-    // 🆕 دریافت پلن کاربر برای تعیین محدودیت حجم (استراتژی Upselling)
+    // ۴. بررسی پلن و محدودیت حجم
     const subscription = await prisma.subscription.findUnique({
       where: { userId: session.user.id },
     });
     const plan = subscription?.plan || 'FREE';
 
-    // تعریف محدودیت حجم به مگابایت برای هر پلن
     const MAX_SIZES_MB: Record<string, number> = {
-      FREE: 50,      // پلن رایگان: ۵۰ مگابایت (حدود ۱۵ دقیقه)
-      STUDENT: 250,  // پلن دانشجویی: ۲۵۰ مگابایت (حدود ۳۰۰ دقیقه)
-      PRO: 500,      // پلن حرفه‌ای: ۵۰۰ مگابایت (حدود ۹۰۰ دقیقه)
+      FREE: 50,
+      STUDENT: 250,
+      PRO: 500,
     };
-
     const maxMB = MAX_SIZES_MB[plan] || 50;
 
-    // 🛡️ اصل Fail-Safe Defaults (محدودیت حجم صدا)
     if (audioFile.size > maxMB * 1024 * 1024) {
       return NextResponse.json(
         { 
@@ -50,17 +58,16 @@ export async function POST(req: Request) {
     const bytes = await audioFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
-    // اصل Least Astonishment: حفظ پسوند واقعی فایل کاربر
+    // ۵. ذخیره فایل صوتی با Provider
     const originalName = audioFile.name || 'audio.webm';
     const ext = originalName.split('.').pop()?.toLowerCase() || 'webm';
     const safeExt = ['mp3', 'm4a', 'wav', 'ogg', 'webm'].includes(ext) ? ext : 'webm';
     
     const filename = `recording-${randomUUID()}.${safeExt}`;
-    
-    // 🆕 استفاده از Storage Provider (لایه واسط)
     const storage = getStorageProvider();
     const storageKey = await storage.saveFile(buffer, filename);
 
+    // ۶. ساخت رکورد در دیتابیس
     const recording = await prisma.recording.create({
       data: {
         userId: session.user.id,
@@ -71,7 +78,7 @@ export async function POST(req: Request) {
       },
     });
 
-    // 📸 آپلود عکس‌ها و زمان‌های مربوطه
+    // ۷. آپلود عکس‌ها
     const photos = formData.getAll('photos') as File[];
     const photoTimes = formData.getAll('photoTimes') as string[];
 
@@ -85,7 +92,6 @@ export async function POST(req: Request) {
       const photoBuffer = Buffer.from(await photo.arrayBuffer());
       const photoName = `photo-${randomUUID()}.jpg`;
       
-      // 🆕 ذخیره عکس با Provider
       await storage.saveFile(photoBuffer, photoName);
       
       const capturedAtSeconds = parseFloat(photoTimes[i]) || null;
@@ -99,6 +105,7 @@ export async function POST(req: Request) {
       });
     }
 
+    // ۸. ساخت Job برای پردازش
     await prisma.processingJob.create({
       data: {
         recordingId: recording.id,
@@ -108,6 +115,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true, recordingId: recording.id });
+
   } catch (error: any) {
     console.error('Upload Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -13,8 +13,9 @@ export default function RecordPage() {
   const [error, setError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   
-  // استیت جدید برای نگهداری فایل صوتی انتخاب شده از گالری
+  // استیت برای فایل صوتی انتخاب شده از گالری
   const [selectedAudio, setSelectedAudio] = useState<File | null>(null);
+  const [audioDuration, setAudioDuration] = useState(0);
 
   const photoObjectUrls = useMemo(
     () => photos.map(p => URL.createObjectURL(p)),
@@ -115,80 +116,44 @@ export default function RecordPage() {
     }
   };
 
-  // این تابع الان فقط فایل را انتخاب می‌کند و نگه می‌دارد، ارسال نمی‌کند
-    const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // این تابع فقط فایل را انتخاب و مدت زمانش را حساب می‌کند
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 50 * 1024 * 1024) {
-      setError('حجم فایل صوتی بیش از ۵۰ مگابایت است.');
+    if (file.size > 250 * 1024 * 1024) {
+      setError('حجم فایل صوتی بیش از ۲۵۰ مگابایت است.');
       return;
     }
 
     setError(null);
-    setStatus('uploading');
-
-    try {
-      const audioUrl = URL.createObjectURL(file);
-      const audio = new Audio(audioUrl);
-      
-      audio.onloadedmetadata = async () => {
-        URL.revokeObjectURL(audioUrl);
-        const duration = Math.round(audio.duration);
-
-        const formData = new FormData();
-        formData.append('audio', file);
-        formData.append('duration', duration.toString());
-
-        // 🔴 اصلاح باگ: اضافه کردن عکس‌ها به فرم‌دیتا
-        photos.forEach(photo => {
-          formData.append('photos', photo);
-        });
-
-        try {
-          const res = await fetch('/api/recordings', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (res.ok) {
-            setStatus('success');
-            // انتقال سریع‌تر (۱ ثانیه) به داشبورد برای پردازش
-            setTimeout(() => {
-              router.push('/dashboard');
-              router.refresh();
-            }, 1000);
-          } else {
-            setError('خطا در آپلود اطلاعات.');
-            setStatus('stopped');
-          }
-        } catch {
-          setError('خطا در ارتباط با سرور.');
-          setStatus('stopped');
-        }
-      };
-      
-      audio.onerror = () => {
-        setError('فرمت فایل صوتی نامعتبر است.');
-        setStatus('stopped');
-      };
-    } catch (err) {
-      setError('خطای ناشناخته در پردازش فایل.');
-      setStatus('stopped');
-    }
+    const audioUrl = URL.createObjectURL(file);
+    const audio = new Audio(audioUrl);
+    
+    audio.onloadedmetadata = () => {
+      URL.revokeObjectURL(audioUrl);
+      setAudioDuration(Math.round(audio.duration));
+      setSelectedAudio(file);
+      setTimeElapsed(Math.round(audio.duration)); // نمایش در تایمر
+      setStatus('idle');
+    };
+    
+    audio.onerror = () => {
+      setError('فرمت فایل صوتی نامعتبر است.');
+    };
   };
 
-  // تابع ارسال نهایی که هم برای ضبط زنده و هم برای فایل گالری استفاده می‌شود
-  const submitRecording = async (audioBlobOrFile: Blob | File, duration: number) => {
+    const submitRecording = async (audioBlobOrFile: Blob | File, duration: number) => {
     setStatus('uploading');
+    setError(null);
     const formData = new FormData();
     
     formData.append('audio', audioBlobOrFile);
     formData.append('duration', duration.toString());
 
-    // اضافه کردن عکس‌ها
     photos.forEach(photo => {
       formData.append('photos', photo);
+      formData.append('photoTimes', ((photo as any).capturedAtSeconds || 0).toString());
     });
 
     try {
@@ -197,18 +162,29 @@ export default function RecordPage() {
         body: formData,
       });
 
+      // 🆕 ضدضربه کردن کد: اگر پاسخ HTML بود، کرش نکن
+      const responseText = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        // اگر پاسخ HTML بود، یعنی سرور کرش کرده
+        console.error('Server returned non-JSON response:', responseText);
+        data = { error: 'خطای سرور: پاسخ نامعتبر. لطفاً کنسول ترمینال را بررسی کنید.' };
+      }
+
       if (res.ok) {
         setStatus('success');
         setTimeout(() => {
           router.push(`/dashboard`);
           router.refresh(); 
-        }, 2000);
+        }, 1500);
       } else {
-        setError('خطا در آپلود اطلاعات.');
+        setError(data.error || 'خطا در آپلود اطلاعات.');
         setStatus('stopped');
       }
     } catch (err) {
-      setError('خطا در ارتباط با سرور.');
+      setError('خطای شبکه در ارتباط با سرور.');
       setStatus('stopped');
     }
   };
@@ -225,10 +201,9 @@ export default function RecordPage() {
     stopEverything();
   };
 
-  // دکمه ذخیره نهایی برای فایل آپلود شده
   const handleSaveUploadedAudio = async () => {
     if (!selectedAudio) return;
-    await submitRecording(selectedAudio, timeElapsed);
+    await submitRecording(selectedAudio, audioDuration);
   };
 
   const startCamera = async () => {
@@ -260,7 +235,7 @@ export default function RecordPage() {
         canvas.toBlob((blob) => {
           if (blob) {
             const file = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
-            (file as any).capturedAtSeconds = timeElapsed; // ثبت زمان برای P10
+            (file as any).capturedAtSeconds = timeElapsed; 
             setPhotos(prev => [...prev, file]);
             stopCamera();
           }
@@ -327,7 +302,7 @@ export default function RecordPage() {
           <div style={{ fontSize: '16px', fontWeight: 'bold', marginTop: '10px' }}>
             {status === 'recording' && <span style={{ color: '#dc2626' }}>🔴 در حال ضبط...</span>}
             {status === 'uploading' && <span style={{ color: 'var(--text-soft)' }}>⏳ در حال ذخیره‌سازی...</span>}
-            {status === 'success' && <span style={{ color: 'var(--green)' }}>✅ فایل‌ها ذخیره شدند! در حال انتقال به داشبورد برای پردازش...</span>}
+            {status === 'success' && <span style={{ color: 'var(--green)' }}>✅ فایل‌ها ذخیره شدند! در حال انتقال به داشبورد...</span>}
             {status === 'stopped' && <span style={{ color: 'var(--text-soft)' }}>ضبط متوقف شده</span>}
             {status === 'idle' && !selectedAudio && <span style={{ color: 'var(--text-soft)' }}>آماده برای شروع</span>}
             {selectedAudio && <span style={{ color: 'var(--green)' }}>فایل صوتی انتخاب شد، می‌توانید عکس اضافه کنید.</span>}
@@ -342,8 +317,8 @@ export default function RecordPage() {
           )}
         </div>
 
-        {/* بخش گرفتن عکس (الان در حالت آپلود فایل هم فعال است) */}
-        {(status === 'recording' || status === 'idle') && (
+        {/* بخش عکس‌ها (همیشه فعال است وقتی در حال ضبط یا فایل انتخاب شده) */}
+        {(status === 'recording' || selectedAudio || status === 'idle') && (
           <div style={{ marginBottom: '30px', borderTop: '1px dashed var(--line)', paddingTop: '20px' }}>
             
             {isCameraOpen ? (
@@ -397,19 +372,17 @@ export default function RecordPage() {
           ) : status === 'success' ? (
             <button disabled className="button button-primary button-large" style={{ width: '200px', backgroundColor: 'var(--green)' }}>
                ذخیره شد ✅
-             </button>
+            </button>
           ) : selectedAudio ? (
-            // اگر فایلی از قبل انتخاب شده بود، دکمه ذخیره نهایی نمایش داده می‌شود
             <>
               <button onClick={handleSaveUploadedAudio} className="button button-primary button-large" style={{ width: '250px' }}>
                 ذخیره فایل و عکس‌ها
               </button>
-              <button onClick={() => setSelectedAudio(null)} className="button button-secondary button-large">
+              <button onClick={() => { setSelectedAudio(null); setTimeElapsed(0); }} className="button button-secondary button-large">
                 لغو فایل
               </button>
             </>
           ) : (
-            // حالت اولیه
             <>
               <button onClick={startRecording} disabled={status === 'stopped'} className="button button-primary button-large" style={{ width: '200px' }}>
                 شروع ضبط
